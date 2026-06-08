@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server"
 import { getAdminAuth, getAdminDb } from "@/lib/firebase-admin"
 import { verifySession } from "@/lib/dal"
+import { logAudit } from "@/lib/audit"
 
 export async function GET() {
   try {
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: "Only super_admin can add users" }, { status: 403 })
     }
 
-    const { email, displayName, password } = await req.json()
+    const { email, displayName, password, role: newRole } = await req.json()
 
     if (!email || !displayName || !password) {
       return Response.json({ error: "Missing required fields" }, { status: 400 })
@@ -56,6 +57,8 @@ export async function POST(req: NextRequest) {
     if (password.length < 8) {
       return Response.json({ error: "Password must be at least 8 characters" }, { status: 400 })
     }
+
+    const targetRole = newRole === "super_admin" ? "super_admin" : "member"
 
     const adminAuth = getAdminAuth()
     const adminDb = getAdminDb()
@@ -72,7 +75,7 @@ export async function POST(req: NextRequest) {
       uid,
       email,
       displayName,
-      role: "member",
+      role: targetRole,
       createdAt: new Date(),
       createdBy: session.uid,
       isActive: true,
@@ -80,7 +83,16 @@ export async function POST(req: NextRequest) {
 
     await adminAuth.setCustomUserClaims(uid, {
       tenantId,
-      role: "member",
+      role: targetRole,
+    })
+
+    await logAudit(tenantId, {
+      action: "user:create",
+      actorId: session.uid,
+      actorEmail: session.email || "",
+      targetId: uid,
+      targetEmail: email,
+      details: `Created user ${displayName} as ${targetRole}`,
     })
 
     return Response.json({
@@ -88,7 +100,7 @@ export async function POST(req: NextRequest) {
       uid,
       email,
       displayName,
-      role: "member",
+      role: targetRole,
     })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : ""

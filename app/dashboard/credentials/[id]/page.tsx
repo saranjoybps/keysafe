@@ -14,6 +14,8 @@ import {
   UserPlus,
   UserX,
   Clock,
+  Pencil,
+  Trash2,
 } from "lucide-react"
 import toast from "react-hot-toast"
 
@@ -50,6 +52,8 @@ export default function CredentialDetailPage() {
   const [loading, setLoading] = useState(true)
   const [revealed, setRevealed] = useState(false)
   const [selectedUser, setSelectedUser] = useState("")
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const revealTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -133,6 +137,27 @@ export default function CredentialDetailPage() {
     }
   }
 
+  async function handleDelete() {
+    if (!credential) return
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/credentials/${credential.id}`, {
+        method: "DELETE",
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || "Failed to delete")
+      }
+      toast.success("Credential deleted")
+      router.push("/dashboard/credentials")
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Something went wrong"
+      toast.error(message)
+      setDeleting(false)
+      setShowDeleteConfirm(false)
+    }
+  }
+
   async function handleRevoke(userId: string) {
     try {
       const res = await fetch(`/api/credentials/${credential!.id}/revoke`, {
@@ -206,6 +231,24 @@ export default function CredentialDetailPage() {
               </a>
             )}
           </div>
+          {canManage && (
+            <div className="flex items-center gap-2">
+              <Link
+                href={`/dashboard/credentials/${credential.id}/edit`}
+                className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+              >
+                <Pencil size={14} />
+                Edit
+              </Link>
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
+              >
+                <Trash2 size={14} />
+                Delete
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="mt-6 space-y-4">
@@ -278,6 +321,39 @@ export default function CredentialDetailPage() {
           )}
         </div>
       </div>
+
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-sm rounded-xl border border-zinc-200 bg-white p-6 shadow-xl dark:border-zinc-800 dark:bg-zinc-900">
+            <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">Delete Credential</h3>
+            <p className="mt-2 text-sm text-zinc-500">
+              Are you sure you want to delete <strong>{credential.serviceName}</strong>?
+              This action cannot be undone.
+            </p>
+            <div className="mt-6 flex gap-3 justify-end">
+              <button
+                onClick={() => { setShowDeleteConfirm(false); setDeleting(false) }}
+                disabled={deleting}
+                className="rounded-lg px-4 py-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleting ? (
+                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                ) : (
+                  <Trash2 size={16} />
+                )}
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {canManage && (
         <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">

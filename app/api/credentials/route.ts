@@ -2,6 +2,7 @@ import { NextRequest } from "next/server"
 import { getAdminDb } from "@/lib/firebase-admin"
 import { verifySession } from "@/lib/dal"
 import { encryptPassword, getTenantEncryptionKey } from "@/lib/encryption"
+import { logAudit } from "@/lib/audit"
 
 export async function GET() {
   try {
@@ -94,6 +95,14 @@ export async function POST(req: NextRequest) {
         updatedAt: new Date(),
         sharedWith: [],
       })
+
+    await logAudit(tenantId, {
+      action: "credential:create",
+      actorId: uid,
+      actorEmail: session.email || "",
+      targetId: credentialRef.id,
+      details: `Created credential for "${serviceName}"`,
+    })
 
     return Response.json({
       success: true,

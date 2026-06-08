@@ -14,6 +14,7 @@ import {
   Users,
   LogOut,
   Shield,
+  Activity,
 } from "lucide-react"
 import toast from "react-hot-toast"
 
@@ -128,7 +129,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const isSuperAdmin = user.role === "super_admin"
 
   const allNavItems = isSuperAdmin
-    ? [...navItems, { href: "/dashboard/users", label: "Users", icon: Users }]
+    ? [
+        ...navItems,
+        { href: "/dashboard/users", label: "Users", icon: Users },
+        { href: "/dashboard/audit", label: "Audit Log", icon: Activity },
+      ]
     : navItems
 
   return (

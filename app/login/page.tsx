@@ -6,7 +6,7 @@ import { signInWithEmailAndPassword } from "firebase/auth"
 import { getAuthInstance } from "@/lib/firebase"
 import Link from "next/link"
 import toast from "react-hot-toast"
-import { Eye, EyeOff, LogIn } from "lucide-react"
+import { Eye, EyeOff, LogIn, Lock } from "lucide-react"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -91,6 +91,16 @@ export default function LoginPage() {
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
+          </div>
+
+          <div className="flex justify-end">
+            <Link
+              href="/forgot-password"
+              className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-500"
+            >
+              <Lock size={12} />
+              Forgot password?
+            </Link>
           </div>
 
           <button

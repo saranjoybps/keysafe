@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useUser } from "../layout"
 import { useRouter } from "next/navigation"
-import { Plus, Shield } from "lucide-react"
+import { Plus, Shield, Pencil } from "lucide-react"
 import Link from "next/link"
 
 interface UserItem {
@@ -79,6 +79,7 @@ export default function UsersPage() {
                 <th className="px-6 py-3">Email</th>
                 <th className="px-6 py-3">Role</th>
                 <th className="px-6 py-3">Joined</th>
+                <th className="px-6 py-3">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
@@ -110,11 +111,20 @@ export default function UsersPage() {
                       ? new Date(u.createdAt).toLocaleDateString()
                       : "—"}
                   </td>
+                  <td className="px-6 py-4">
+                    <Link
+                      href={`/dashboard/users/${u.uid}/edit`}
+                      className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                    >
+                      <Pencil size={14} />
+                      Edit
+                    </Link>
+                  </td>
                 </tr>
               ))}
               {users.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center text-zinc-500">
+                  <td colSpan={5} className="px-6 py-12 text-center text-zinc-500">
                     No users found
                   </td>
                 </tr>
@@ -137,16 +147,23 @@ export default function UsersPage() {
                   <p className="truncate text-sm text-zinc-500">{u.email}</p>
                 </div>
                 <span
-                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
                     u.role === "super_admin"
-                      ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-                      : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                      ? "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                      : "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
                   }`}
                 >
                   <Shield size={12} />
                   {u.role === "super_admin" ? "Admin" : "Member"}
                 </span>
               </div>
+              <Link
+                href={`/dashboard/users/${u.uid}/edit`}
+                className="mt-3 flex items-center justify-center gap-1 rounded-lg border border-zinc-200 px-3 py-1.5 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
+              >
+                <Pencil size={14} />
+                Edit
+              </Link>
             </div>
           ))}
           {users.length === 0 && (

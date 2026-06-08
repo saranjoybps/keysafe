@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server"
 import { getAdminDb } from "@/lib/firebase-admin"
 import { verifySession } from "@/lib/dal"
+import { logAudit } from "@/lib/audit"
 
 export async function POST(
   req: NextRequest,
@@ -51,6 +52,19 @@ export async function POST(
         sharedWith: updatedShared,
         updatedAt: new Date(),
       })
+
+    const revokedUser = currentShared.find(
+      (s: { userId: string }) => s.userId === userId
+    )
+
+    await logAudit(tenantId, {
+      action: "credential:revoke",
+      actorId: uid,
+      actorEmail: session.email || "",
+      targetId: id,
+      targetEmail: revokedUser?.email || "",
+      details: `Revoked access to "${data.serviceName}" from ${revokedUser?.email || userId}`,
+    })
 
     return Response.json({ success: true })
   } catch (err: unknown) {

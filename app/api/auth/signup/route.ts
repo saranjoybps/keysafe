@@ -2,6 +2,7 @@ import { NextRequest } from "next/server"
 import { getAdminAuth, getAdminDb } from "@/lib/firebase-admin"
 import { createSession } from "@/lib/session"
 import { generateKey, encryptTenantKey } from "@/lib/encryption"
+import { logAudit } from "@/lib/audit"
 
 export async function POST(req: NextRequest) {
   try {
@@ -57,6 +58,13 @@ export async function POST(req: NextRequest) {
       tenantId,
       role: "super_admin",
       email,
+    })
+
+    await logAudit(tenantId, {
+      action: "auth:login",
+      actorId: uid,
+      actorEmail: email,
+      details: `User signed up and created tenant "${tenantName}"`,
     })
 
     return Response.json({

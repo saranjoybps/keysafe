@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server"
 import { getAdminDb } from "@/lib/firebase-admin"
 import { verifySession } from "@/lib/dal"
+import { logAudit } from "@/lib/audit"
 
 export async function POST(
   req: NextRequest,
@@ -71,6 +72,15 @@ export async function POST(
         ],
         updatedAt: new Date(),
       })
+
+    await logAudit(tenantId, {
+      action: "credential:grant",
+      actorId: uid,
+      actorEmail: session.email || "",
+      targetId: id,
+      targetEmail: userData.email,
+      details: `Granted access to "${data.serviceName}" for ${userData.email}`,
+    })
 
     return Response.json({ success: true })
   } catch (err: unknown) {

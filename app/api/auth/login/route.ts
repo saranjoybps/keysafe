@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server"
 import { getAdminAuth } from "@/lib/firebase-admin"
 import { createSession } from "@/lib/session"
+import { logAudit } from "@/lib/audit"
 
 export async function POST(req: NextRequest) {
   try {
@@ -24,11 +25,20 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: "No tenant found for this user" }, { status: 403 })
     }
 
+    const actorEmail = decoded.email || ""
+
     await createSession({
       uid,
       tenantId,
       role,
-      email: decoded.email || "",
+      email: actorEmail,
+    })
+
+    await logAudit(tenantId, {
+      action: "auth:login",
+      actorId: uid,
+      actorEmail,
+      details: `User logged in`,
     })
 
     return Response.json({

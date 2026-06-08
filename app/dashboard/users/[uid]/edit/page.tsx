@@ -1,45 +1,80 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { useUser } from "../../layout"
-import { Eye, EyeOff, UserPlus, ArrowLeft, Shield } from "lucide-react"
+import { useState, useEffect } from "react"
+import { useParams, useRouter } from "next/navigation"
+import { useUser } from "../../../layout"
+import { ArrowLeft, Save, Shield } from "lucide-react"
 import Link from "next/link"
 import toast from "react-hot-toast"
 
-export default function AddUserPage() {
-  const { user } = useUser()
+interface UserData {
+  uid: string
+  displayName: string
+  email: string
+  role: "super_admin" | "member"
+}
+
+export default function EditUserPage() {
+  const params = useParams()
   const router = useRouter()
+  const { user } = useUser()
   const [displayName, setDisplayName] = useState("")
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [showPassword, setShowPassword] = useState(false)
   const [role, setRole] = useState<"member" | "super_admin">("member")
   const [loading, setLoading] = useState(false)
+  const [fetching, setFetching] = useState(true)
 
-  if (user?.role !== "super_admin") {
-    router.push("/dashboard")
-    return null
-  }
+  useEffect(() => {
+    if (user?.role !== "super_admin") {
+      router.push("/dashboard")
+      return
+    }
+
+    async function fetchUser() {
+      try {
+        const res = await fetch("/api/users")
+        if (res.ok) {
+          const data = await res.json()
+          const found = (data.users || []).find(
+            (u: UserData) => u.uid === params.uid
+          )
+          if (found) {
+            setDisplayName(found.displayName)
+            setRole(found.role)
+          } else {
+            toast.error("User not found")
+            router.push("/dashboard/users")
+          }
+        }
+      } catch {
+        toast.error("Failed to load user")
+        router.push("/dashboard/users")
+      } finally {
+        setFetching(false)
+      }
+    }
+    fetchUser()
+  }, [user, params.uid, router])
+
+  if (user?.role !== "super_admin") return null
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
 
     try {
-      const res = await fetch("/api/users", {
-        method: "POST",
+      const res = await fetch(`/api/users/${params.uid}`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, displayName, password, role }),
+        body: JSON.stringify({ displayName, role }),
       })
 
       const data = await res.json()
 
       if (!res.ok) {
-        throw new Error(data.error || "Failed to create user")
+        throw new Error(data.error || "Failed to update user")
       }
 
-      toast.success(`${displayName} has been added as ${role === "super_admin" ? "Admin" : "Member"}`)
+      toast.success("User updated")
       router.push("/dashboard/users")
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Something went wrong"
@@ -47,6 +82,14 @@ export default function AddUserPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (fetching) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+      </div>
+    )
   }
 
   return (
@@ -59,13 +102,23 @@ export default function AddUserPage() {
           <ArrowLeft size={16} />
           Back to Users
         </Link>
-        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">Add Team Member</h1>
+        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">Edit Team Member</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          This will create their account and send them to this organization
+          Update name or role for this team member
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="flex items-center gap-3 border-b border-zinc-100 pb-4 dark:border-zinc-800">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-100 dark:bg-violet-900/30">
+            <Shield size={20} className="text-violet-600 dark:text-violet-400" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-zinc-900 dark:text-white">Member Details</p>
+            <p className="text-xs text-zinc-500">Update the information below</p>
+          </div>
+        </div>
+
         <div>
           <label htmlFor="name" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
             Full Name
@@ -77,49 +130,7 @@ export default function AddUserPage() {
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
             className="mt-1 block w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
-            placeholder="Jane Smith"
           />
-        </div>
-
-        <div>
-          <label htmlFor="email" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 block w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
-            placeholder="jane@example.com"
-          />
-        </div>
-
-        <div>
-          <label htmlFor="password" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            Temporary Password
-          </label>
-          <div className="relative mt-1">
-            <input
-              id="password"
-              type={showPassword ? "text" : "password"}
-              required
-              minLength={8}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="block w-full rounded-lg border border-zinc-300 px-3 py-2 pr-10 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
-              placeholder="••••••••"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
-              tabIndex={-1}
-            >
-              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-            </button>
-          </div>
         </div>
 
         <div>
@@ -148,9 +159,11 @@ export default function AddUserPage() {
           {loading ? (
             <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
           ) : (
-            <UserPlus size={18} />
+            <>
+              <Save size={18} />
+              Save Changes
+            </>
           )}
-          Add Team Member
         </button>
       </form>
     </div>
