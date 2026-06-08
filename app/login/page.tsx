@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { signInWithEmailAndPassword } from "firebase/auth"
-import { auth } from "@/lib/firebase"
+import { getAuthInstance } from "@/lib/firebase"
 import Link from "next/link"
 import toast from "react-hot-toast"
 import { Eye, EyeOff, LogIn } from "lucide-react"
@@ -20,7 +20,7 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      const userCred = await signInWithEmailAndPassword(auth, email, password)
+      const userCred = await signInWithEmailAndPassword(getAuthInstance(), email, password)
       const idToken = await userCred.user.getIdToken()
 
       const res = await fetch("/api/auth/login", {

@@ -3,7 +3,7 @@
 import { useState, useEffect, createContext, useContext } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import Link from "next/link"
-import { auth } from "@/lib/firebase"
+import { getAuthInstance } from "@/lib/firebase"
 import { onAuthStateChanged, signOut } from "firebase/auth"
 import {
   Menu,
@@ -43,6 +43,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     let cancelled = false
+
+    const auth = getAuthInstance()
 
     async function resolveUser(firebaseUser: typeof auth.currentUser) {
       if (!firebaseUser) {
@@ -105,7 +107,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [router])
 
   async function handleLogout() {
-    await signOut(auth)
+    await signOut(getAuthInstance())
     await fetch("/api/auth/logout", { method: "POST" })
     toast.success("Signed out")
     router.push("/login")

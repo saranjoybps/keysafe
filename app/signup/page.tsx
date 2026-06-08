@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { signInWithEmailAndPassword } from "firebase/auth"
-import { auth } from "@/lib/firebase"
+import { getAuthInstance } from "@/lib/firebase"
 import Link from "next/link"
 import toast from "react-hot-toast"
 import { Eye, EyeOff, UserPlus } from "lucide-react"
@@ -34,7 +34,7 @@ export default function SignupPage() {
         throw new Error(data.error || "Signup failed")
       }
 
-      await signInWithEmailAndPassword(auth, email, password)
+      await signInWithEmailAndPassword(getAuthInstance(), email, password)
 
       toast.success("Tenant created! Welcome to KeySafe.")
       router.push("/dashboard")
