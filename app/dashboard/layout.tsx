@@ -7,7 +7,6 @@ import { getAuthInstance } from "@/lib/firebase"
 import { onAuthStateChanged, signOut } from "firebase/auth"
 import {
   Menu,
-  X,
   LayoutDashboard,
   Key,
   Share2,
@@ -30,9 +29,9 @@ const UserContext = createContext<{ user: UserInfo | null }>({ user: null })
 export const useUser = () => useContext(UserContext)
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/dashboard/credentials", label: "Credentials", icon: Key },
-  { href: "/dashboard/shared", label: "Shared with Me", icon: Share2 },
+  { href: "/dashboard/shared", label: "Shared", icon: Share2 },
 ]
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -44,7 +43,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     let cancelled = false
-
     const auth = getAuthInstance()
 
     async function resolveUser(firebaseUser: typeof auth.currentUser) {
@@ -64,25 +62,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             return
           }
         }
-        if (!cancelled) {
-          router.push("/login")
-        }
+        if (!cancelled) router.push("/login")
         return
       }
 
       try {
         const tokenResult = await firebaseUser.getIdTokenResult()
         const claims = tokenResult.claims
-        const tenantId = (claims.tenantId as string) || ""
-        const role = (claims.role as "super_admin" | "member") || "member"
-
         if (!cancelled) {
           setUser({
             uid: firebaseUser.uid,
             email: firebaseUser.email || "",
             displayName: firebaseUser.displayName || "",
-            tenantId,
-            role,
+            tenantId: (claims.tenantId as string) || "",
+            role: (claims.role as "super_admin" | "member") || "member",
           })
         }
       } catch {
@@ -93,18 +86,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
 
     const currentUser = auth.currentUser
-    if (currentUser) {
-      resolveUser(currentUser)
-    }
+    if (currentUser) resolveUser(currentUser)
 
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       resolveUser(firebaseUser)
     })
 
-    return () => {
-      cancelled = true
-      unsubscribe()
-    }
+    return () => { cancelled = true; unsubscribe() }
   }, [router])
 
   async function handleLogout() {
@@ -116,119 +104,120 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-950">
-        <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="relative">
+          <span className="inline-block h-8 w-8 rounded-full border-2 border-muted" />
+          <span className="absolute inset-0 inline-block h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        </div>
       </div>
     )
   }
 
-  if (!user) {
-    return null
-  }
+  if (!user) return null
 
   const isSuperAdmin = user.role === "super_admin"
 
   const allNavItems = isSuperAdmin
-    ? [
-        ...navItems,
-        { href: "/dashboard/users", label: "Users", icon: Users },
-        { href: "/dashboard/audit", label: "Audit Log", icon: Activity },
-      ]
+    ? [...navItems, { href: "/dashboard/users", label: "Team", icon: Users }, { href: "/dashboard/audit", label: "Audit", icon: Activity }]
     : navItems
+
+  function isActive(href: string) {
+    if (href === "/dashboard") return pathname === "/dashboard"
+    return pathname.startsWith(href)
+  }
 
   return (
     <UserContext.Provider value={{ user }}>
-      <div className="flex min-h-screen bg-zinc-50 dark:bg-zinc-950">
+      <div className="flex min-h-screen bg-background">
+        {/* Mobile overlay */}
+        {sidebarOpen && (
+          <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden" onClick={() => setSidebarOpen(false)} />
+        )}
+
+        {/* Sidebar */}
         <aside
-          className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-white shadow-lg transition-transform dark:bg-zinc-900 dark:shadow-zinc-800 ${
+          className={`fixed inset-y-0 left-0 z-50 flex w-60 flex-col bg-sidebar-bg transition-transform duration-300 ease-out lg:static lg:translate-x-0 ${
             sidebarOpen ? "translate-x-0" : "-translate-x-full"
-          } lg:static lg:translate-x-0`}
+          }`}
         >
-          <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4 dark:border-zinc-800">
-            <Link href="/dashboard" className="flex items-center gap-2">
-              <Shield className="text-blue-600" size={24} />
-              <span className="text-lg font-bold text-zinc-900 dark:text-zinc-50">KeySafe</span>
-            </Link>
-            <button
-              onClick={() => setSidebarOpen(false)}
-              className="text-zinc-400 hover:text-zinc-600 lg:hidden"
-            >
-              <X size={20} />
-            </button>
+          {/* Logo */}
+          <div className="flex h-16 items-center gap-3 px-5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/20">
+              <Shield size={16} className="text-primary" />
+            </div>
+            <span className="text-[15px] font-semibold tracking-tight text-white">KeySafe</span>
           </div>
 
+          {/* Navigation */}
           <nav className="flex-1 space-y-1 px-3 py-4">
             {allNavItems.map((item) => {
-              const isActive =
-                item.href === "/dashboard"
-                  ? pathname === "/dashboard"
-                  : pathname.startsWith(item.href)
+              const active = isActive(item.href)
               const Icon = item.icon
               return (
                 <Link
                   key={item.href}
                   href={item.href}
                   onClick={() => setSidebarOpen(false)}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                    isActive
-                      ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-                      : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                  className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-all duration-150 ${
+                    active
+                      ? "bg-primary/15 text-primary"
+                      : "text-sidebar-fg hover:bg-sidebar-hover hover:text-white"
                   }`}
                 >
-                  <Icon size={20} />
+                  <Icon size={17} strokeWidth={active ? 2.2 : 1.8} />
                   {item.label}
                 </Link>
               )
             })}
           </nav>
 
-          <div className="border-t border-zinc-200 px-4 py-4 dark:border-zinc-800">
-            <div className="mb-3 flex items-center gap-3 px-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">
-                {user.displayName.charAt(0).toUpperCase()}
+          {/* User section */}
+          <div className="px-3 pb-4">
+            <div className="rounded-xl bg-sidebar-accent p-3">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/20 text-xs font-bold text-primary">
+                  {(user.displayName || user.email).charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[13px] font-medium text-white">
+                    {user.displayName || "User"}
+                  </p>
+                  <p className="truncate text-[11px] text-sidebar-fg">{user.email}</p>
+                </div>
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-50">
-                  {user.displayName}
-                </p>
-                <p className="truncate text-xs text-zinc-500">{user.email}</p>
-              </div>
+              <button
+                onClick={handleLogout}
+                className="mt-2.5 flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-[12px] font-medium text-sidebar-fg transition-colors hover:bg-sidebar-hover hover:text-white"
+              >
+                <LogOut size={14} />
+                Sign out
+              </button>
             </div>
-            <button
-              onClick={handleLogout}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
-            >
-              <LogOut size={18} />
-              Sign Out
-            </button>
           </div>
         </aside>
 
-        {sidebarOpen && (
-          <div
-            className="fixed inset-0 z-40 bg-black/30 lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
-
+        {/* Main content */}
         <div className="flex flex-1 flex-col min-w-0">
-          <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-zinc-200 bg-white/80 px-4 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80">
+          {/* Header */}
+          <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-black/[0.04] bg-background/80 px-5 backdrop-blur-xl lg:px-8">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="text-zinc-500 hover:text-zinc-700 lg:hidden"
+              className="rounded-xl p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground lg:hidden"
             >
-              <Menu size={22} />
+              <Menu size={18} />
             </button>
-            <div className="flex items-center gap-2 text-sm text-zinc-500">
-              <span className="hidden sm:inline">{user.displayName}</span>
-              <span className="hidden sm:inline">/</span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
-                {isSuperAdmin ? "Super Admin" : "Member"}
-              </span>
+            <div className="flex items-center gap-2.5">
+              {isSuperAdmin && (
+                <span className="inline-flex items-center gap-1 rounded-lg bg-primary/10 px-2 py-0.5 text-[11px] font-semibold tracking-wide uppercase text-primary">
+                  <Shield size={10} />
+                  Admin
+                </span>
+              )}
             </div>
           </header>
 
-          <main className="flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
+          {/* Page content */}
+          <main className="flex-1 px-5 py-6 lg:px-8 lg:py-8">{children}</main>
         </div>
       </div>
     </UserContext.Provider>

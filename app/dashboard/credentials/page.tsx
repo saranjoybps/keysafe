@@ -1,8 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import Link from "next/link"
-import { Key, Plus, Globe, ExternalLink } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { Key, Globe } from "lucide-react"
+import Button from "@/components/ui/button"
+import Card from "@/components/ui/card"
+import EmptyState from "@/components/ui/empty-state"
+import PageHeader from "@/components/ui/page-header"
+import Spinner from "@/components/ui/spinner"
 
 interface CredentialItem {
   id: string
@@ -15,6 +20,7 @@ interface CredentialItem {
 }
 
 export default function CredentialsPage() {
+  const router = useRouter()
   const [credentials, setCredentials] = useState<CredentialItem[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -26,98 +32,75 @@ export default function CredentialsPage() {
           const data = await res.json()
           setCredentials(data.credentials || [])
         }
-      } catch {
-        // silently fail
-      } finally {
+      } catch { /* silently fail */ } finally {
         setLoading(false)
       }
     }
     fetchCredentials()
   }, [])
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
-      </div>
-    )
-  }
+  if (loading) return <Spinner />
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">Credentials</h1>
-          <p className="mt-1 text-sm text-zinc-500">
-            Manage your saved credentials
-          </p>
-        </div>
-        <Link
-          href="/dashboard/credentials/new"
-          className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
-        >
-          <Plus size={18} />
-          Add Credential
-        </Link>
-      </div>
+    <div className="mx-auto max-w-4xl space-y-6">
+      <PageHeader
+        title="Credentials"
+        description="Your saved credentials"
+        action={
+          <Button onClick={() => router.push("/dashboard/credentials/new")} size="sm">
+            Add credential
+          </Button>
+        }
+      />
 
       {credentials.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-zinc-300 py-16 dark:border-zinc-700">
-          <Key size={40} className="text-zinc-300 dark:text-zinc-600" />
-          <h3 className="mt-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">No credentials yet</h3>
-          <p className="mt-1 text-sm text-zinc-500">Add your first credential to get started</p>
-          <Link
-            href="/dashboard/credentials/new"
-            className="mt-4 flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
-          >
-            <Plus size={18} />
-            Add Credential
-          </Link>
-        </div>
+        <EmptyState
+          icon={Key}
+          title="No credentials yet"
+          description="Store your first credential to get started"
+          action={<Button onClick={() => router.push("/dashboard/credentials/new")} size="sm">Add credential</Button>}
+        />
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {credentials.map((cred) => {
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {credentials.map((cred, i) => {
             const sharedCount = (cred as { sharedWith?: Array<unknown> }).sharedWith?.length || 0
             return (
-              <Link
+              <div
                 key={cred.id}
-                href={`/dashboard/credentials/${cred.id}`}
-                className="group rounded-xl border border-zinc-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900"
+                onClick={(e) => {
+                  if ((e.target as HTMLElement).closest("a")) return
+                  router.push(`/dashboard/credentials/${cred.id}`)
+                }}
+                className="cursor-pointer animate-fade-up"
+                style={{ animationDelay: `${i * 30}ms` }}
               >
-                <div className="flex items-start justify-between">
-                  <div className="min-w-0 flex-1">
-                    <h3 className="truncate text-base font-semibold text-zinc-900 dark:text-zinc-50">
-                      {cred.serviceName}
-                    </h3>
+                <Card hover className="p-4">
+                  <div className="min-w-0">
+                    <h3 className="truncate text-sm font-medium text-foreground">{cred.serviceName}</h3>
                     {cred.url && (
                       <a
                         href={cred.url}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="mt-0.5 inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-500"
+                        className="mt-1 inline-flex items-center gap-1 text-[13px] text-primary transition-colors hover:text-primary/80"
                       >
-                        <Globe size={12} />
-                        <span className="truncate max-w-[200px]">{cred.url.replace(/^https?:\/\//, "")}</span>
-                        <ExternalLink size={10} />
+                        <Globe size={11} />
+                        <span className="truncate max-w-[180px]">{cred.url.replace(/^https?:\/\//, "")}</span>
                       </a>
                     )}
-                    <p className="mt-1 text-sm text-zinc-500">{cred.username}</p>
+                    <p className="mt-1.5 font-mono text-xs text-muted-foreground">{cred.username}</p>
                   </div>
-                </div>
-
-                <div className="mt-4 flex items-center gap-3 border-t border-zinc-100 pt-3 text-xs text-zinc-400 dark:border-zinc-800">
-                  <span>{new Date(cred.createdAt).toLocaleDateString()}</span>
-                  {sharedCount > 0 && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400">
-                      Shared {sharedCount}
-                    </span>
-                  )}
-                  <span className="ml-auto opacity-0 transition-opacity group-hover:opacity-100">
-                    View &rarr;
-                  </span>
-                </div>
-              </Link>
+                  <div className="mt-3 flex items-center gap-2 text-[11px] text-muted-foreground">
+                    <span>{new Date(cred.createdAt).toLocaleDateString()}</span>
+                    {sharedCount > 0 && (
+                      <span className="rounded-lg bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+                        Shared {sharedCount}
+                      </span>
+                    )}
+                  </div>
+                </Card>
+              </div>
             )
           })}
         </div>
